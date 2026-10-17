@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard &amp; Live 24kHz Morpho Sandbox</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card: #131c31;
+      --border: #233252;
+      --accent: #10b981;
+      --accent-hover: #059669;
+      --blue: #3b82f6;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 24px 16px 64px;
+    }
+    .header {
+      text-align: center;
+      padding: 12px 0 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+    textarea, select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      font-size: 14px;
+      margin-top: 6px;
+      margin-bottom: 12px;
+    }
+    .primary-btn {
+      width: 100%;
+      padding: 13px 18px;
+      border: none;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #052e16;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .primary-btn:hover { background: var(--accent-hover); }
+    .player-box {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .player-label {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #cbd5e1;
+    }
+    audio { width: 100%; height: 36px; }
+    .token-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .token-pill {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12.5px;
+    }
+    .token-pill.cs {
+      border-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 8px;
+      text-align: left;
+    }
+    th { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Admin — Blind A/B Scoreboard &amp; Live 24kHz Morpho Sandbox</h1>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Live Blind A/B Listening Scoreboard</h3>
+      <div id="admin-scoreboard" style="font-size:14px;color:var(--muted);">Loading results...</div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Live 24kHz Voice &amp; Morpho Sandbox</h3>
+      <label style="font-size:13px;color:var(--muted);">Input Text</label>
+      <textarea id="sandbox-input" rows="3">Umukiliya ashaka ku-checkinga balance kuri compte ya Mobile Money</textarea>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label style="font-size:13px;color:var(--muted);">Studio Speaker (`C4IR-RW/kinya-flex-tts`)</label>
+          <select id="sandbox-speaker">
+            <option value="0">Speaker 0 — Female Studio 1 (24kHz)</option>
+            <option value="1">Speaker 1 — Female Studio 2 (24kHz)</option>
+            <option value="2">Speaker 2 — Male Studio (24kHz)</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:13px;color:var(--muted);">Speaking Speed</label>
+          <select id="sandbox-speed">
+            <option value="1.0">1.0x (Natural Studio Pace)</option>
+            <option value="0.85">0.85x (Clear Articulation)</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="primary-btn" id="sandbox-run-btn" onclick="runSandbox()">🔊 Analyze Morphology &amp; Synthesize 24kHz Speech</button>
+
+      <div id="sandbox-output" style="display:none;margin-top:18px;">
+        <div class="player-box" style="margin-bottom:14px;">
+          <div class="player-label" id="sandbox-g2p-label">Synthesized 24kHz Audio</div>
+          <audio id="sandbox-audio" controls></audio>
+        </div>
+        <div id="sandbox-badges" style="margin-bottom:10px;font-size:13px;color:#34d399;font-weight:600;"></div>
+        <div class="token-pills" id="sandbox-tokens"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const NTFY_POLL_URL = "https://ntfy.sh/kinya_morpho_ab_jkayobotsi_v1/json?poll=1&since=all";
+
+    async function loadScoreboard() {
+      const box = document.getElementById("admin-scoreboard");
+      let morphoWins = 0, baselineWins = 0, ties = 0, totalVotes = 0, totalSubs = 0;
+      const byItem = {};
+      const recentSubs = [];
+
+      // 1. Try cloud ntfy feed (works on Hugging Face Static Space & locally)
+      try {
+        const resCloud = await fetch(NTFY_POLL_URL);
+        if (resCloud.ok) {
+          const text = await resCloud.text();
+          const lines = text.trim().split("\n").filter(Boolean);
+          lines.forEach(line => {
+            try {
+              const evt = JSON.parse(line);
+              if (evt.event === "message" && evt.message) {
+                const sub = JSON.parse(evt.message);
+                if (Array.isArray(sub.votes)) {
+                  totalSubs += 1;
+                  recentSubs.push(sub);
+                  sub.votes.forEach(v => {
+                    const id = v.item_id || "unknown";
+                    byItem[id] = byItem[id] || { morpho: 0, baseline: 0, same: 0, total: 0 };
+                    byItem[id].total += 1;
+                    totalVotes += 1;
+                    if (v.winner === "morpho") { morphoWins += 1; byItem[id].morpho += 1; }
+                    else if (v.winner === "baseline") { baselineWins += 1; byItem[id].baseline += 1; }
+                    else { ties += 1; byItem[id].same += 1; }
+                  });
+                }
+              }
+            } catch (_) {}
+          });
+        }
+      } catch (_) {}
+
+      // 2. Fallback to local /v1/eval/ab-results if cloud had 0 submissions
+      if (totalSubs === 0) {
+        try {
+          const resLocal = await fetch("/v1/eval/ab-results");
+          if (resLocal.ok) {
+            const s = await resLocal.json();
+            morphoWins = s.morpho_wins || 0;
+            baselineWins = s.baseline_wins || 0;
+            ties = s.ties || 0;
+            totalVotes = s.total_item_votes || 0;
+            totalSubs = s.total_submissions || 0;
+            Object.assign(byItem, s.by_item || {});
+          }
+        } catch (_) {}
+      }
+
+      const prefPct = ((100.0 * morphoWins) / Math.max(morphoWins + baselineWins, 1)).toFixed(1);
+      let rowsHtml = "";
+      Object.entries(byItem).forEach(([itemId, st]) => {
+        rowsHtml += `<tr><td><code>${itemId}</code></td><td><strong style="color:#34d399;">${st.morpho}</strong></td><td>${st.baseline}</td><td>${st.same}</td><td>${st.total}</td></tr>`;
+      });
+
+      box.innerHTML = `
+        <div style="color:#f1f5f9;font-size:15px;margin-bottom:10px;">
+          Overall Morpho-Engine Preference: <strong style="color:#34d399;">${prefPct}%</strong>
+          — Morpho Wins: <strong>${morphoWins}</strong> |
+          Baseline Wins: <strong>${baselineWins}</strong> |
+          Ties: <strong>${ties}</strong>
+          (${totalSubs} submissions, ${totalVotes} total votes)
+        </div>
+        ${rowsHtml ? `<table><thead><tr><th>Sentence ID</th><th>Morpho Wins</th><th>Baseline Wins</th><th>Same</th><th>Total</th></tr></thead><tbody>${rowsHtml}</tbody></table>` : ""}
+      `;
+    }
+
+    async function runSandbox() {
+      const text = document.getElementById("sandbox-input").value.trim();
+      if (!text) return;
+      const speaker_id = parseInt(document.getElementById("sandbox-speaker").value, 10);
+      const speed = parseFloat(document.getElementById("sandbox-speed").value);
+      const btn = document.getElementById("sandbox-run-btn");
+      btn.textContent = "⏳ Synthesizing 24kHz Studio Audio & Analyzing...";
+      btn.disabled = true;
+
+      try {
+        const [resAnalyze, resSpeech] = await Promise.all([
+          fetch("/v1/morpho/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text })
+          }).then(r => r.json()),
+          fetch("/v1/audio/speech", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              input: text,
+              speaker_id: speaker_id,
+              speed: speed,
+              apply_codeswitch_g2p: true,
+              response_format: "json"
+            })
+          }).then(r => r.json())
+        ]);
+
+        document.getElementById("sandbox-output").style.display = "block";
+        document.getElementById("sandbox-g2p-label").textContent =
+          `24kHz Spoken Phonetic Realization: "${resSpeech.transduced_tts_text}" (${resSpeech.audio.duration_sec}s)`;
+        const wavName = resSpeech.audio.wav_path.split("/").pop();
+        const audioEl = document.getElementById("sandbox-audio");
+        audioEl.src = `/audio/${wavName}?t=${Date.now()}`;
+        audioEl.play();
+
+        const comp = resAnalyze.compression_vs_bpe;
+        const cb = resAnalyze.concord_bus;
+        document.getElementById("sandbox-badges").innerHTML =
+          `Compression vs Qwen BPE: ${comp.bpe_to_morpho_compression_ratio}x (${comp.qwen_bpe_subword_tokens} BPE subwords → ${comp.morpho_word_tokens} MorphoTokens) | Active Concord Bus Channel: Class ${cb.final_active_noun_class} | Lossless: ${resAnalyze.is_lossless ? '100%' : 'No'}`;
+
+        const pillsDiv = document.getElementById("sandbox-tokens");
+        pillsDiv.innerHTML = "";
+        resAnalyze.tokens.forEach(t => {
+          const pill = document.createElement("div");
+          pill.className = "token-pill" + (t.is_codeswitch ? " cs" : "");
+          pill.innerHTML = `<strong>${t.surface_form}</strong> → <code>${t.compact_repr}</code>`;
+          pillsDiv.appendChild(pill);
+        });
+      } finally {
+        btn.textContent = "🔊 Analyze Morphology & Synthesize 24kHz Speech";
+        btn.disabled = false;
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", loadScoreboard);
+  </script>
+</body>
+</html>

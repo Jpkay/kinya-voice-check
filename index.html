@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kinyarwanda Voice Listening Check</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card: #131c31;
+      --border: #233252;
+      --accent: #10b981;
+      --accent-hover: #059669;
+      --blue: #3b82f6;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 24px 16px 64px;
+    }
+    .header {
+      text-align: center;
+      padding: 12px 0 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 26px;
+      margin: 4px 0 8px;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 15px;
+      margin: 0 auto;
+      max-width: 600px;
+    }
+    .toolbar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .pill-btn {
+      padding: 7px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .pill-btn.active {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: white;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .sentence-box {
+      background: #0b1324;
+      border-left: 3px solid var(--accent);
+      padding: 12px 14px;
+      border-radius: 6px;
+      font-size: 16px;
+      margin: 8px 0 14px;
+    }
+    .sentence-context {
+      color: var(--muted);
+      font-size: 13px;
+      font-style: italic;
+      margin-top: 4px;
+    }
+    .ab-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    @media (max-width: 640px) {
+      .ab-grid { grid-template-columns: 1fr; }
+    }
+    .player-box {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .player-label {
+      font-size: 13.5px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #e2e8f0;
+    }
+    audio {
+      width: 100%;
+      height: 36px;
+    }
+    .vote-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .vote-btn {
+      flex: 1;
+      min-width: 120px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 13.5px;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .vote-btn.selected {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #052e16;
+    }
+    .submit-bar {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      margin-top: 20px;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: var(--text);
+      font-size: 14px;
+      margin-top: 6px;
+      margin-bottom: 12px;
+    }
+    .primary-btn {
+      width: 100%;
+      padding: 13px 18px;
+      border: none;
+      border-radius: 10px;
+      background: var(--accent);
+      color: #052e16;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .primary-btn:hover { background: var(--accent-hover); }
+    .thank-you-banner {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 10px;
+      background: rgba(16, 185, 129, 0.14);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+      font-size: 14.5px;
+      font-weight: 600;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Kinyarwanda Voice Listening Check</h1>
+      <p class="sub">
+        Listen to Voice A and Voice B for each sentence below, and tap the one that sounds more natural to your ear.
+      </p>
+    </div>
+
+    <div class="toolbar">
+      <span style="font-size:13.5px;color:var(--muted);">Voice:</span>
+      <button id="voice-female" class="pill-btn active" onclick="setVoiceGender('female')">Female</button>
+      <button id="voice-male" class="pill-btn" onclick="setVoiceGender('male')">Male</button>
+    </div>
+
+    <div id="ab-cards-container"></div>
+
+    <div class="submit-bar">
+      <label style="font-size:13px;color:var(--muted);">Your Name (Optional)</label>
+      <input type="text" id="tester-name" placeholder="Optional" />
+      <label style="font-size:13px;color:var(--muted);">Any quick comments? (Optional)</label>
+      <textarea id="general-notes" rows="2" placeholder="Optional"></textarea>
+      <button class="primary-btn" id="submit-btn" onclick="submitVotes()">Send Feedback</button>
+      <div id="vote-results-box" style="display:none;" class="thank-you-banner">
+        Murakoze! Thank you — your feedback has been saved.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const NTFY_TOPIC_URL = "https://ntfy.sh/kinya_morpho_ab_jkayobotsi_v1";
+    const AB_ITEMS = [
+      {
+        id: "codeswitch_banking",
+        title: "Sentence 1",
+        sentence: "Umukiliya ashaka ku-checkinga balance kuri compte ya Mobile Money",
+        context: "(Context: Checking Mobile Money account balance)",
+        female_morpho: "audio/codeswitch_kigali_banking_morpho.wav",
+        female_flat: "audio/codeswitch_kigali_banking_raw.wav",
+        male_morpho: "audio/codeswitch_kigali_banking_male_morpho.wav",
+        male_flat: "audio/codeswitch_kigali_banking_male_raw.wav"
+      },
+      {
+        id: "codeswitch_transfer",
+        title: "Sentence 2",
+        sentence: "Abaclient batransferye avance kuri account ya banki",
+        context: "(Context: Clients transferring an advance to a bank account)",
+        female_morpho: "audio/codeswitch_transfer_morpho.wav",
+        female_flat: "audio/codeswitch_transfer_raw.wav",
+        male_morpho: "audio/codeswitch_transfer_male_morpho.wav",
+        male_flat: "audio/codeswitch_transfer_male_raw.wav"
+      },
+      {
+        id: "codeswitch_healthcare",
+        title: "Sentence 3",
+        sentence: "Muganga yaconfirminze rendez-vous ya assurance kuri system",
+        context: "(Context: Doctor confirming an insurance appointment in the system)",
+        female_morpho: "audio/codeswitch_healthcare_morpho.wav",
+        female_flat: "audio/codeswitch_healthcare_raw.wav",
+        male_morpho: "audio/codeswitch_healthcare_male_morpho.wav",
+        male_flat: "audio/codeswitch_healthcare_male_raw.wav"
+      },
+      {
+        id: "pair1_kubaza",
+        title: "Sentence 4",
+        sentence: "Umubaji ashaka kubaza imbaho nziza mu ibarizo",
+        context: "(Context: A carpenter planing wooden planks)",
+        female_morpho: "audio/pair1_kubaza_plane_wood_morpho_tonal.wav",
+        female_flat: "audio/pair1_kubaza_plane_wood_bpe_flat.wav",
+        male_morpho: "audio/pair1_kubaza_plane_wood_male_morpho_tonal.wav",
+        male_flat: "audio/pair1_kubaza_plane_wood_male_bpe_flat.wav"
+      },
+      {
+        id: "pair5_gusiba",
+        title: "Sentence 5",
+        sentence: "Umwarimu yabonye abanyeshuri baje gusiba mu gitondo",
+        context: "(Context: Students skipping class in the morning)",
+        female_morpho: "audio/pair5_gusiba_absent_morpho_tonal.wav",
+        female_flat: "audio/pair5_gusiba_absent_bpe_flat.wav",
+        male_morpho: "audio/pair5_gusiba_absent_male_morpho_tonal.wav",
+        male_flat: "audio/pair5_gusiba_absent_male_bpe_flat.wav"
+      },
+      {
+        id: "pair6_kubaka",
+        title: "Sentence 6",
+        sentence: "Abayobozi bateguye kubaka amashuri menshi mu cyaro",
+        context: "(Context: Leaders preparing to build many schools in the countryside)",
+        female_morpho: "audio/pair6_kubaka_build_morpho_tonal.wav",
+        female_flat: "audio/pair6_kubaka_build_bpe_flat.wav",
+        male_morpho: "audio/pair6_kubaka_build_male_morpho_tonal.wav",
+        male_flat: "audio/pair6_kubaka_build_male_bpe_flat.wav"
+      },
+      {
+        id: "pair6_hiatus_concord",
+        title: "Sentence 7",
+        sentence: "Abakozi barigishira abaturage mu karere",
+        context: "(Context: Staff teaching citizens in the district)",
+        female_morpho: "audio/pair6_hiatus_concord_morpho_tonal.wav",
+        female_flat: "audio/pair6_hiatus_concord_bpe_flat.wav",
+        male_morpho: "audio/pair6_hiatus_concord_male_morpho_tonal.wav",
+        male_flat: "audio/pair6_hiatus_concord_male_bpe_flat.wav"
+      },
+      {
+        id: "pair8_hiatus_ubakisha",
+        title: "Sentence 8",
+        sentence: "Abaturage barubakisha amashuri mashya mu murenge",
+        context: "(Context: Citizens building new schools in the sector)",
+        female_morpho: "audio/pair8_hiatus_ubakisha_morpho_tonal.wav",
+        female_flat: "audio/pair8_hiatus_ubakisha_bpe_flat.wav",
+        male_morpho: "audio/pair8_hiatus_ubakisha_male_morpho_tonal.wav",
+        male_flat: "audio/pair8_hiatus_ubakisha_male_bpe_flat.wav"
+      },
+      {
+        id: "pair9_concord_cl10",
+        title: "Sentence 9",
+        sentence: "Inguzanyo zose abakiliya basabye mu kwezi gushize zemejwe uyu munsi",
+        context: "(Context: All the loans clients requested last month were approved today)",
+        female_morpho: "audio/pair9_concord_cl10_morpho_tonal.wav",
+        female_flat: "audio/pair9_concord_cl10_bpe_flat.wav",
+        male_morpho: "audio/pair9_concord_cl10_male_morpho_tonal.wav",
+        male_flat: "audio/pair9_concord_cl10_male_bpe_flat.wav"
+      },
+      {
+        id: "pair10_concord_cl7",
+        title: "Sentence 10",
+        sentence: "Ikigo cyacu abaturage bose bakunda mu mujyi wa Kigali cyatangije gahunda nshya",
+        context: "(Context: Our institution that all citizens love in Kigali launched a new program)",
+        female_morpho: "audio/pair10_concord_cl7_morpho_tonal.wav",
+        female_flat: "audio/pair10_concord_cl7_bpe_flat.wav",
+        male_morpho: "audio/pair10_concord_cl7_male_morpho_tonal.wav",
+        male_flat: "audio/pair10_concord_cl7_male_bpe_flat.wav"
+      }
+    ];
+
+    let currentVoiceGender = "female";
+    const blindMapping = {}; // item_id -> { A: 'morpho'|'baseline', B: 'baseline'|'morpho' }
+    const userSelections = {}; // item_id -> 'A'|'B'|'same'
+
+    function initBlindTest() {
+      const container = document.getElementById("ab-cards-container");
+      container.innerHTML = "";
+      AB_ITEMS.forEach(item => {
+        const morphoIsA = Math.random() < 0.5;
+        blindMapping[item.id] = morphoIsA
+          ? { A: "morpho", B: "baseline" }
+          : { A: "baseline", B: "morpho" };
+
+        const srcMorpho = currentVoiceGender === "female" ? item.female_morpho : item.male_morpho;
+        const srcFlat = currentVoiceGender === "female" ? item.female_flat : item.male_flat;
+        const srcA = morphoIsA ? srcMorpho : srcFlat;
+        const srcB = morphoIsA ? srcFlat : srcMorpho;
+
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <h3>${item.title}</h3>
+          <div class="sentence-box">
+            <div><strong>"${item.sentence}"</strong></div>
+            <div class="sentence-context">${item.context}</div>
+          </div>
+          <div class="ab-grid">
+            <div class="player-box">
+              <div class="player-label">Voice A</div>
+              <audio id="audio-a-${item.id}" controls preload="none" src="${srcA}"></audio>
+            </div>
+            <div class="player-box">
+              <div class="player-label">Voice B</div>
+              <audio id="audio-b-${item.id}" controls preload="none" src="${srcB}"></audio>
+            </div>
+          </div>
+          <div class="vote-row">
+            <button class="vote-btn" id="btn-${item.id}-A" onclick="selectVote('${item.id}', 'A')">Voice A sounds better</button>
+            <button class="vote-btn" id="btn-${item.id}-B" onclick="selectVote('${item.id}', 'B')">Voice B sounds better</button>
+            <button class="vote-btn" id="btn-${item.id}-same" onclick="selectVote('${item.id}', 'same')">About the same</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function updateAudioSources() {
+      AB_ITEMS.forEach(item => {
+        const map = blindMapping[item.id];
+        const srcMorpho = currentVoiceGender === "female" ? item.female_morpho : item.male_morpho;
+        const srcFlat = currentVoiceGender === "female" ? item.female_flat : item.male_flat;
+        const aa = document.getElementById(`audio-a-${item.id}`);
+        const ab = document.getElementById(`audio-b-${item.id}`);
+        if (aa && ab) {
+          aa.src = map.A === "morpho" ? srcMorpho : srcFlat;
+          ab.src = map.B === "morpho" ? srcMorpho : srcFlat;
+        }
+      });
+    }
+
+    function setVoiceGender(gender) {
+      currentVoiceGender = gender;
+      document.getElementById("voice-female").classList.toggle("active", gender === "female");
+      document.getElementById("voice-male").classList.toggle("active", gender === "male");
+      updateAudioSources();
+    }
+
+    function selectVote(itemId, choice) {
+      userSelections[itemId] = choice;
+      ["A", "B", "same"].forEach(opt => {
+        const btn = document.getElementById(`btn-${itemId}-${opt}`);
+        if (btn) btn.classList.toggle("selected", opt === choice);
+      });
+    }
+
+    async function submitVotes() {
+      const votes = [];
+      AB_ITEMS.forEach(item => {
+        const sel = userSelections[item.id];
+        if (!sel) return;
+        const map = blindMapping[item.id];
+        const winner = sel === "same" ? "same" : map[sel];
+        votes.push({
+          item_id: item.id,
+          winner: winner,
+          selected_option: sel,
+          voice_gender: currentVoiceGender,
+          notes: ""
+        });
+      });
+
+      if (votes.length === 0) {
+        alert("Please select a choice on at least one sentence before sending.");
+        return;
+      }
+
+      const payload = {
+        timestamp: new Date().toISOString(),
+        tester_name: document.getElementById("tester-name").value || "anonymous",
+        general_notes: document.getElementById("general-notes").value || "",
+        votes: votes
+      };
+
+      const btn = document.getElementById("submit-btn");
+      btn.disabled = true;
+      btn.textContent = "Saving...";
+
+      await Promise.all([
+        fetch("/v1/eval/ab-vote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }).catch(() => null),
+        fetch(NTFY_TOPIC_URL, {
+          method: "POST",
+          body: JSON.stringify(payload)
+        }).catch(() => null)
+      ]);
+
+      btn.textContent = "Feedback Sent";
+      document.getElementById("vote-results-box").style.display = "block";
+    }
+
+    window.addEventListener("DOMContentLoaded", initBlindTest);
+  </script>
+</body>
+</html>
