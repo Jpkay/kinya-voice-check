@@ -351,8 +351,8 @@
           ? { A: "morpho", B: "baseline" }
           : { A: "baseline", B: "morpho" };
 
-        const srcMorpho = `${currentVoiceGender === "female" ? item.female_morpho : item.male_morpho}?v=${PUBLISHED_VERSION}`;
-        const srcFlat = `${currentVoiceGender === "female" ? item.female_flat : item.male_flat}?v=${PUBLISHED_VERSION}`;
+        const srcMorpho = `${currentVoiceGender === "female" ? item.female_morpho : item.male_morpho}?v=2.1`;
+        const srcFlat = `${currentVoiceGender === "female" ? item.female_flat : item.male_flat}?v=2.1`;
         const srcA = morphoIsA ? srcMorpho : srcFlat;
         const srcB = morphoIsA ? srcFlat : srcMorpho;
 
@@ -388,8 +388,8 @@
     function updateAudioSources() {
       AB_ITEMS.forEach(item => {
         const map = blindMapping[item.id];
-        const srcMorpho = `${currentVoiceGender === "female" ? item.female_morpho : item.male_morpho}?v=${PUBLISHED_VERSION}`;
-        const srcFlat = `${currentVoiceGender === "female" ? item.female_flat : item.male_flat}?v=${PUBLISHED_VERSION}`;
+        const srcMorpho = `${currentVoiceGender === "female" ? item.female_morpho : item.male_morpho}?v=2.1`;
+        const srcFlat = `${currentVoiceGender === "female" ? item.female_flat : item.male_flat}?v=2.1`;
         const aa = document.getElementById(`audio-a-${item.id}`);
         const ab = document.getElementById(`audio-b-${item.id}`);
         if (aa && ab) {
