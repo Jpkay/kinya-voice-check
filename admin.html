@@ -178,6 +178,9 @@
 <body>
   <div class="container">
     <div class="header">
+      <div style="display:inline-block;padding:4px 13px;border-radius:999px;background:rgba(16,185,129,0.15);border:1.5px solid rgba(16,185,129,0.6);color:#34d399;font-size:12.5px;font-weight:700;letter-spacing:0.4px;margin-bottom:8px;">
+        PUBLISHED VERSION 2
+      </div>
       <h1>Admin — Blind A/B Scoreboard &amp; Live 24kHz Morpho Sandbox</h1>
     </div>
 
@@ -285,6 +288,7 @@
       allSubmissions = loaded.map((sub, idx) => ({
         ...sub,
         _idx: idx,
+        published_version: sub.published_version || 1,
         tester_name: (sub.tester_name || "anonymous").trim()
       }));
       selectedSubIndices = new Set(allSubmissions.map(s => s._idx));
@@ -295,6 +299,12 @@
     function filterAllSubs() {
       selectedSubIndices = new Set(allSubmissions.map(s => s._idx));
       activeFilterTag = "all";
+      renderFilteredScoreboard();
+    }
+
+    function filterVersion2Only() {
+      selectedSubIndices = new Set(allSubmissions.filter(s => Number(s.published_version) === 2).map(s => s._idx));
+      activeFilterTag = "v2";
       renderFilteredScoreboard();
     }
 
@@ -377,10 +387,12 @@
         return `<button class="filter-chip ${isAct ? 'active' : ''}" onclick="filterByTesterName('${safeName}')">👤 Only: ${tName}</button>`;
       }).join("");
 
+      const v2Count = allSubmissions.filter(s => Number(s.published_version) === 2).length;
       const filterBarHtml = allSubmissions.length > 0 ? `
         <div class="filter-bar">
           <span style="font-size:12px;color:#94a3b8;margin-right:4px;">Filter Results:</span>
           <button class="filter-chip ${activeFilterTag === 'all' ? 'active' : ''}" onclick="filterAllSubs()">All (${allSubmissions.length})</button>
+          <button class="filter-chip ${activeFilterTag === 'v2' ? 'active' : ''}" onclick="filterVersion2Only()">🆕 Version 2 Only (${v2Count})</button>
           <button class="filter-chip ${activeFilterTag === 'latest' ? 'active' : ''}" onclick="filterLatestSubOnly()">⚡ Latest Only (#${allSubmissions.length})</button>
           ${testerChipsHtml}
           <button class="filter-chip ${activeFilterTag === 'none' ? 'active' : ''}" onclick="filterClearAll()">Clear All</button>
@@ -400,6 +412,9 @@
         subsHtml = `<h4 style="margin:18px 0 6px;color:#f1f5f9;">Reviewer Submissions &amp; Written Feedback — Tick/Untick to Include or Exclude (${includedSubs.length} of ${allSubmissions.length} included)</h4>`;
         allSubmissions.slice().reverse().forEach(sub => {
           const isChecked = selectedSubIndices.has(sub._idx);
+          const vBadge = Number(sub.published_version) === 2
+            ? `<span style="padding:1px 7px;border-radius:999px;background:rgba(16,185,129,0.18);border:1px solid #10b981;color:#34d399;font-size:11px;font-weight:700;">Version 2</span>`
+            : `<span style="padding:1px 7px;border-radius:999px;background:#1e293b;border:1px solid #475569;color:#94a3b8;font-size:11px;">Version 1</span>`;
           const vPills = (sub.votes || []).map(v => {
             const c = v.winner === "morpho" ? "#34d399" : (v.winner === "baseline" ? "#fbbf24" : (v.winner === "neither" ? "#f87171" : "#94a3b8"));
             return `<span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 7px;border-radius:6px;background:#1e293b;color:${c};font-size:12px;"><code>${v.item_id}</code>: <strong>${v.winner}</strong></span>`;
@@ -413,6 +428,7 @@
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                   <input type="checkbox" ${isChecked ? "checked" : ""} onchange="toggleSubIndex(${sub._idx})" style="width:16px;height:16px;accent-color:#10b981;cursor:pointer;" />
                   <strong>#${sub._idx + 1} — 👤 ${sub.tester_name || "anonymous"}</strong>
+                  ${vBadge}
                   <span style="color:#94a3b8;font-size:12px;">(${(sub.votes || []).length} votes)</span>
                 </label>
                 <div>

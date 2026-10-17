@@ -203,6 +203,9 @@
 <body>
   <div class="container">
     <div class="header">
+      <div style="display:inline-block;padding:4px 13px;border-radius:999px;background:rgba(16,185,129,0.15);border:1.5px solid rgba(16,185,129,0.6);color:#34d399;font-size:12.5px;font-weight:700;letter-spacing:0.4px;margin-bottom:8px;">
+        PUBLISHED VERSION 2
+      </div>
       <h1>Kinyarwanda Voice Listening Check</h1>
       <p class="sub">
         Listen to Voice A and Voice B for each sentence below, and tap the one that sounds more natural to your ear.
@@ -222,14 +225,15 @@
       <input type="text" id="tester-name" placeholder="Optional" />
       <label style="font-size:13px;color:var(--muted);">Any quick comments? (Optional)</label>
       <textarea id="general-notes" rows="2" placeholder="Optional"></textarea>
-      <button class="primary-btn" id="submit-btn" onclick="submitVotes()">Send Feedback</button>
+      <button class="primary-btn" id="submit-btn" onclick="submitVotes()">Send Feedback (Version 2)</button>
       <div id="vote-results-box" style="display:none;" class="thank-you-banner">
-        Murakoze! Thank you — your feedback has been saved.
+        Murakoze! Thank you — your feedback for Published Version 2 has been saved.
       </div>
     </div>
   </div>
 
   <script>
+    const PUBLISHED_VERSION = 2;
     const NTFY_TOPIC_URL = "https://ntfy.sh/kinya_morpho_ab_jkayobotsi_v1";
     const AB_ITEMS = [
       {
@@ -347,8 +351,8 @@
           ? { A: "morpho", B: "baseline" }
           : { A: "baseline", B: "morpho" };
 
-        const srcMorpho = currentVoiceGender === "female" ? item.female_morpho : item.male_morpho;
-        const srcFlat = currentVoiceGender === "female" ? item.female_flat : item.male_flat;
+        const srcMorpho = `${currentVoiceGender === "female" ? item.female_morpho : item.male_morpho}?v=${PUBLISHED_VERSION}`;
+        const srcFlat = `${currentVoiceGender === "female" ? item.female_flat : item.male_flat}?v=${PUBLISHED_VERSION}`;
         const srcA = morphoIsA ? srcMorpho : srcFlat;
         const srcB = morphoIsA ? srcFlat : srcMorpho;
 
@@ -384,8 +388,8 @@
     function updateAudioSources() {
       AB_ITEMS.forEach(item => {
         const map = blindMapping[item.id];
-        const srcMorpho = currentVoiceGender === "female" ? item.female_morpho : item.male_morpho;
-        const srcFlat = currentVoiceGender === "female" ? item.female_flat : item.male_flat;
+        const srcMorpho = `${currentVoiceGender === "female" ? item.female_morpho : item.male_morpho}?v=${PUBLISHED_VERSION}`;
+        const srcFlat = `${currentVoiceGender === "female" ? item.female_flat : item.male_flat}?v=${PUBLISHED_VERSION}`;
         const aa = document.getElementById(`audio-a-${item.id}`);
         const ab = document.getElementById(`audio-b-${item.id}`);
         if (aa && ab) {
@@ -432,6 +436,7 @@
       }
 
       const payload = {
+        published_version: PUBLISHED_VERSION,
         timestamp: new Date().toISOString(),
         tester_name: document.getElementById("tester-name").value || "anonymous",
         general_notes: document.getElementById("general-notes").value || "",
@@ -454,7 +459,7 @@
         }).catch(() => null)
       ]);
 
-      btn.textContent = "Feedback Sent";
+      btn.textContent = "Feedback Sent (Version 2)";
       document.getElementById("vote-results-box").style.display = "block";
     }
 
