@@ -141,6 +141,17 @@
       border-color: var(--accent);
       color: #052e16;
     }
+    .vote-btn-neither {
+      flex-basis: 100%;
+      border-color: #475569;
+      color: #cbd5e1;
+      font-size: 13px;
+    }
+    .vote-btn-neither.selected {
+      background: #ef4444;
+      border-color: #ef4444;
+      color: #ffffff;
+    }
     .submit-bar {
       background: var(--card);
       border: 1px solid var(--border);
@@ -320,7 +331,7 @@
 
     let currentVoiceGender = "female";
     const blindMapping = {}; // item_id -> { A: 'morpho'|'baseline', B: 'baseline'|'morpho' }
-    const userSelections = {}; // item_id -> 'A'|'B'|'same'
+    const userSelections = {}; // item_id -> 'A'|'B'|'same'|'neither'
 
     function initBlindTest() {
       const container = document.getElementById("ab-cards-container");
@@ -358,6 +369,7 @@
             <button class="vote-btn" id="btn-${item.id}-A" onclick="selectVote('${item.id}', 'A')">Voice A sounds better</button>
             <button class="vote-btn" id="btn-${item.id}-B" onclick="selectVote('${item.id}', 'B')">Voice B sounds better</button>
             <button class="vote-btn" id="btn-${item.id}-same" onclick="selectVote('${item.id}', 'same')">About the same</button>
+            <button class="vote-btn vote-btn-neither" id="btn-${item.id}-neither" onclick="selectVote('${item.id}', 'neither')">No version was remotely acceptable/understandable</button>
           </div>
         `;
         container.appendChild(card);
@@ -387,7 +399,7 @@
 
     function selectVote(itemId, choice) {
       userSelections[itemId] = choice;
-      ["A", "B", "same"].forEach(opt => {
+      ["A", "B", "same", "neither"].forEach(opt => {
         const btn = document.getElementById(`btn-${itemId}-${opt}`);
         if (btn) btn.classList.toggle("selected", opt === choice);
       });
@@ -399,7 +411,7 @@
         const sel = userSelections[item.id];
         if (!sel) return;
         const map = blindMapping[item.id];
-        const winner = sel === "same" ? "same" : map[sel];
+        const winner = sel === "same" ? "same" : (sel === "neither" ? "neither" : map[sel]);
         votes.push({
           item_id: item.id,
           winner: winner,
