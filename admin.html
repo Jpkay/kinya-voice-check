@@ -124,6 +124,54 @@
       padding: 12px 14px;
       margin-top: 10px;
       font-size: 13px;
+      transition: opacity 0.15s, border-color 0.15s;
+    }
+    .sub-card.excluded {
+      opacity: 0.42;
+      border-style: dashed;
+    }
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .filter-chip {
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #1e293b;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .filter-chip:hover {
+      border-color: var(--accent);
+    }
+    .filter-chip.active {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #ffffff;
+    }
+    .solo-btn {
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #cbd5e1;
+      font-size: 11.5px;
+      cursor: pointer;
+      margin-left: 8px;
+    }
+    .solo-btn:hover {
+      border-color: var(--accent);
+      color: #ffffff;
     }
   </style>
 </head>
@@ -179,13 +227,27 @@
 
   <script>
     const NTFY_POLL_URL = "https://ntfy.sh/kinya_morpho_ab_jkayobotsi_v1/json?poll=1&since=all";
+    const CANONICAL_SENTENCES = [
+      { id: "codeswitch_banking", label: "1. codeswitch_banking" },
+      { id: "codeswitch_transfer", label: "2. codeswitch_transfer" },
+      { id: "codeswitch_healthcare", label: "3. codeswitch_healthcare" },
+      { id: "pair1_kubaza", label: "4. pair1_kubaza" },
+      { id: "pair5_gusiba", label: "5. pair5_gusiba" },
+      { id: "pair6_kubaka", label: "6. pair6_kubaka" },
+      { id: "pair6_hiatus_concord", label: "7. pair6_hiatus_concord" },
+      { id: "pair8_hiatus_ubakisha", label: "8. pair8_hiatus_ubakisha" },
+      { id: "pair9_concord_cl10", label: "9. pair9_concord_cl10" },
+      { id: "pair10_concord_cl7", label: "10. pair10_concord_cl7" }
+    ];
+
+    let allSubmissions = [];
+    let selectedSubIndices = new Set();
+    let activeFilterTag = "all";
 
     async function loadScoreboard() {
       const box = document.getElementById("admin-scoreboard");
       box.innerHTML = "Fetching live results...";
-      let morphoWins = 0, baselineWins = 0, ties = 0, neitherWins = 0, totalVotes = 0, totalSubs = 0;
-      const byItem = {};
-      const recentSubs = [];
+      const loaded = [];
 
       // 1. Try cloud ntfy feed with cache-buster so browser never serves stale empty response
       try {
@@ -199,18 +261,7 @@
               if (evt.event === "message" && evt.message) {
                 const sub = JSON.parse(evt.message);
                 if (Array.isArray(sub.votes)) {
-                  totalSubs += 1;
-                  recentSubs.push(sub);
-                  sub.votes.forEach(v => {
-                    const id = v.item_id || "unknown";
-                    byItem[id] = byItem[id] || { morpho: 0, baseline: 0, same: 0, neither: 0, total: 0 };
-                    byItem[id].total += 1;
-                    totalVotes += 1;
-                    if (v.winner === "morpho") { morphoWins += 1; byItem[id].morpho += 1; }
-                    else if (v.winner === "baseline") { baselineWins += 1; byItem[id].baseline += 1; }
-                    else if (v.winner === "neither") { neitherWins += 1; byItem[id].neither += 1; }
-                    else { ties += 1; byItem[id].same += 1; }
-                  });
+                  loaded.push(sub);
                 }
               }
             } catch (_) {}
@@ -219,35 +270,136 @@
       } catch (_) {}
 
       // 2. Fallback to local /v1/eval/ab-results if cloud had 0 submissions
-      if (totalSubs === 0) {
+      if (loaded.length === 0) {
         try {
           const resLocal = await fetch(`/v1/eval/ab-results?_t=${Date.now()}`, { cache: "no-store" });
           if (resLocal.ok) {
             const s = await resLocal.json();
-            morphoWins = s.morpho_wins || 0;
-            baselineWins = s.baseline_wins || 0;
-            ties = s.ties || 0;
-            neitherWins = s.neither_acceptable || 0;
-            totalVotes = s.total_item_votes || 0;
-            totalSubs = s.total_submissions || 0;
-            Object.assign(byItem, s.by_item || {});
             if (Array.isArray(s.recent_submissions)) {
-              recentSubs.push(...s.recent_submissions);
+              loaded.push(...s.recent_submissions);
             }
           }
         } catch (_) {}
       }
 
+      allSubmissions = loaded.map((sub, idx) => ({
+        ...sub,
+        _idx: idx,
+        tester_name: (sub.tester_name || "anonymous").trim()
+      }));
+      selectedSubIndices = new Set(allSubmissions.map(s => s._idx));
+      activeFilterTag = "all";
+      renderFilteredScoreboard();
+    }
+
+    function filterAllSubs() {
+      selectedSubIndices = new Set(allSubmissions.map(s => s._idx));
+      activeFilterTag = "all";
+      renderFilteredScoreboard();
+    }
+
+    function filterLatestSubOnly() {
+      if (allSubmissions.length === 0) return;
+      selectedSubIndices = new Set([allSubmissions[allSubmissions.length - 1]._idx]);
+      activeFilterTag = "latest";
+      renderFilteredScoreboard();
+    }
+
+    function filterClearAll() {
+      selectedSubIndices = new Set();
+      activeFilterTag = "none";
+      renderFilteredScoreboard();
+    }
+
+    function filterByTesterName(name) {
+      const target = name.toLowerCase();
+      selectedSubIndices = new Set(
+        allSubmissions.filter(s => (s.tester_name || "anonymous").toLowerCase() === target).map(s => s._idx)
+      );
+      activeFilterTag = `tester:${target}`;
+      renderFilteredScoreboard();
+    }
+
+    function filterSoloIndex(idx) {
+      selectedSubIndices = new Set([idx]);
+      activeFilterTag = `solo:${idx}`;
+      renderFilteredScoreboard();
+    }
+
+    function toggleSubIndex(idx) {
+      if (selectedSubIndices.has(idx)) {
+        selectedSubIndices.delete(idx);
+      } else {
+        selectedSubIndices.add(idx);
+      }
+      activeFilterTag = "custom";
+      renderFilteredScoreboard();
+    }
+
+    function renderFilteredScoreboard() {
+      const box = document.getElementById("admin-scoreboard");
+      let morphoWins = 0, baselineWins = 0, ties = 0, neitherWins = 0, totalVotes = 0;
+      const byItem = {};
+      CANONICAL_SENTENCES.forEach(cs => {
+        byItem[cs.id] = { morpho: 0, baseline: 0, same: 0, neither: 0, total: 0, label: cs.label };
+      });
+
+      const includedSubs = allSubmissions.filter(s => selectedSubIndices.has(s._idx));
+      includedSubs.forEach(sub => {
+        (sub.votes || []).forEach(v => {
+          const id = v.item_id || "unknown";
+          if (!byItem[id]) {
+            byItem[id] = { morpho: 0, baseline: 0, same: 0, neither: 0, total: 0, label: id };
+          }
+          byItem[id].total += 1;
+          totalVotes += 1;
+          if (v.winner === "morpho") { morphoWins += 1; byItem[id].morpho += 1; }
+          else if (v.winner === "baseline") { baselineWins += 1; byItem[id].baseline += 1; }
+          else if (v.winner === "neither") { neitherWins += 1; byItem[id].neither += 1; }
+          else { ties += 1; byItem[id].same += 1; }
+        });
+      });
+
+      // Build unique tester filter chips
+      const uniqueTesters = [];
+      const seenTesters = new Set();
+      allSubmissions.forEach(s => {
+        const key = s.tester_name.toLowerCase();
+        if (!seenTesters.has(key)) {
+          seenTesters.add(key);
+          uniqueTesters.push(s.tester_name);
+        }
+      });
+
+      const testerChipsHtml = uniqueTesters.map(tName => {
+        const isAct = activeFilterTag === `tester:${tName.toLowerCase()}`;
+        const safeName = tName.replace(/'/g, "\'");
+        return `<button class="filter-chip ${isAct ? 'active' : ''}" onclick="filterByTesterName('${safeName}')">👤 Only: ${tName}</button>`;
+      }).join("");
+
+      const filterBarHtml = allSubmissions.length > 0 ? `
+        <div class="filter-bar">
+          <span style="font-size:12px;color:#94a3b8;margin-right:4px;">Filter Results:</span>
+          <button class="filter-chip ${activeFilterTag === 'all' ? 'active' : ''}" onclick="filterAllSubs()">All (${allSubmissions.length})</button>
+          <button class="filter-chip ${activeFilterTag === 'latest' ? 'active' : ''}" onclick="filterLatestSubOnly()">⚡ Latest Only (#${allSubmissions.length})</button>
+          ${testerChipsHtml}
+          <button class="filter-chip ${activeFilterTag === 'none' ? 'active' : ''}" onclick="filterClearAll()">Clear All</button>
+        </div>
+      ` : "";
+
       const prefPct = ((100.0 * morphoWins) / Math.max(morphoWins + baselineWins, 1)).toFixed(1);
       let rowsHtml = "";
       Object.entries(byItem).forEach(([itemId, st]) => {
-        rowsHtml += `<tr><td><code>${itemId}</code></td><td><strong style="color:#34d399;">${st.morpho || 0}</strong></td><td>${st.baseline || 0}</td><td>${st.same || 0}</td><td style="color:#f87171;">${st.neither || 0}</td><td>${st.total || 0}</td></tr>`;
+        if (st.total > 0 || CANONICAL_SENTENCES.some(c => c.id === itemId)) {
+          rowsHtml += `<tr><td><code>${st.label || itemId}</code></td><td><strong style="color:#34d399;">${st.morpho || 0}</strong></td><td>${st.baseline || 0}</td><td>${st.same || 0}</td><td style="color:#f87171;">${st.neither || 0}</td><td>${st.total || 0}</td></tr>`;
+        }
       });
 
       let subsHtml = "";
-      if (recentSubs.length > 0) {
-        subsHtml = `<h4 style="margin:18px 0 8px;color:#f1f5f9;">Reviewer Submissions &amp; Written Feedback (${recentSubs.length})</h4>`;
-        recentSubs.slice().reverse().forEach(sub => {
+      if (allSubmissions.length > 0) {
+        subsHtml = `<h4 style="margin:18px 0 6px;color:#f1f5f9;">Reviewer Submissions &amp; Written Feedback — Tick/Untick to Include or Exclude (${includedSubs.length} of ${allSubmissions.length} included)</h4>`;
+        allSubmissions.slice().reverse().forEach(sub => {
+          const isChecked = selectedSubIndices.has(sub._idx);
           const vPills = (sub.votes || []).map(v => {
             const c = v.winner === "morpho" ? "#34d399" : (v.winner === "baseline" ? "#fbbf24" : (v.winner === "neither" ? "#f87171" : "#94a3b8"));
             return `<span style="display:inline-block;margin:2px 6px 2px 0;padding:2px 7px;border-radius:6px;background:#1e293b;color:${c};font-size:12px;"><code>${v.item_id}</code>: <strong>${v.winner}</strong></span>`;
@@ -256,10 +408,17 @@
             ? `<div style="margin-top:8px;padding:8px 10px;background:#0b1324;border-left:3px solid #3b82f6;border-radius:4px;color:#e2e8f0;white-space:pre-wrap;">${sub.general_notes}</div>`
             : "";
           subsHtml += `
-            <div class="sub-card">
-              <div style="display:flex;justify-content:space-between;color:#cbd5e1;margin-bottom:6px;">
-                <strong>👤 ${sub.tester_name || "anonymous"}</strong>
-                <span style="color:#94a3b8;font-size:12px;">${sub.timestamp || ""}</span>
+            <div class="sub-card ${isChecked ? '' : 'excluded'}">
+              <div style="display:flex;justify-content:space-between;align-items:center;color:#cbd5e1;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                  <input type="checkbox" ${isChecked ? "checked" : ""} onchange="toggleSubIndex(${sub._idx})" style="width:16px;height:16px;accent-color:#10b981;cursor:pointer;" />
+                  <strong>#${sub._idx + 1} — 👤 ${sub.tester_name || "anonymous"}</strong>
+                  <span style="color:#94a3b8;font-size:12px;">(${(sub.votes || []).length} votes)</span>
+                </label>
+                <div>
+                  <span style="color:#94a3b8;font-size:12px;">${sub.timestamp || ""}</span>
+                  <button class="solo-btn" onclick="filterSoloIndex(${sub._idx})">Only this</button>
+                </div>
               </div>
               <div>${vPills}</div>
               ${notesBlock}
@@ -269,13 +428,14 @@
       }
 
       box.innerHTML = `
+        ${filterBarHtml}
         <div style="color:#f1f5f9;font-size:15px;margin-bottom:10px;">
           Overall Morpho-Engine Preference: <strong style="color:#34d399;">${prefPct}%</strong>
           — Morpho Wins: <strong>${morphoWins}</strong> |
           Baseline Wins: <strong>${baselineWins}</strong> |
           Ties: <strong>${ties}</strong> |
           Neither Acceptable: <strong style="color:#f87171;">${neitherWins}</strong>
-          (${totalSubs} submissions, ${totalVotes} total votes)
+          (${includedSubs.length} of ${allSubmissions.length} submissions included, ${totalVotes} total votes)
         </div>
         ${rowsHtml ? `<table><thead><tr><th>Sentence ID</th><th>Morpho Wins</th><th>Baseline Wins</th><th>Same</th><th>Neither Acceptable</th><th>Total</th></tr></thead><tbody>${rowsHtml}</tbody></table>` : ""}
         ${subsHtml}
